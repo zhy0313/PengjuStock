@@ -4,46 +4,52 @@ from __future__ import unicode_literals
 import httplib
 import urllib
 import json
+import MySQLdb
+import time
+import datetime
+
+import rpc
 
 #主要财务指标数据接口
-reqHeader = {
-	'Host': 'xueqiu.com',
-	'Cookie': 'aliyungf_tc=AQAAAPqtyXxuKgcA4rJfZS86i/IcAJw+; s=eu1a0y8gx5; xq_a_token=b7445c1557f11e952f9b783240df9c9d7b58b7f1; xq_r_token=23dc6c96ff5f79ab8dcf0eb7d38db8d1842f739a; Hm_lvt_1db88642e346389874251b5a1eded6e3=1502699854; Hm_lpvt_1db88642e346389874251b5a1eded6e3=1502699854; u=941502699853574; device_id=d969dc896ad8a8f880e82525c396bcb9'
-}
+reqHeader = rpc.getHeaders()
 
 #参数
-reqdata={
+reqdata = {
 	'symbol': 'SZ002561',
 	'page': 1,
 	'size': 1,
 	'_': 1502605245564
 }
-
 data = urllib.urlencode(reqdata)
-print(data);
 
 #连接服务器
 conn = httplib.HTTPSConnection('xueqiu.com')
 conn.request('GET', 'https://xueqiu.com/stock/f10/finmainindex.json?symbol=SZ002561&page=1&size=100&_=1502605245564', data, reqHeader)
 
+
 #获取具体数据
 resp = conn.getresponse()
+status  = resp.status
+
+if status != 200:
+	print '请求数据失败'
+	quit()
+
 entity = resp.read();
 decode = json.loads(entity)
 
-#数据解析
-print type(decode['list'])
+#print decode
 
 #遍历列表数据
 for i in decode['list']:
 
 	reportdate = i['reportdate'];
 	
-	if reportdate.index('0331') >= 0:
+	if reportdate.find('0331') >= 0:
 		print '季度：' + reportdate[0:4] + '年' + '1季度'
-	elif reportdate.index('0631') >= 0:
+	elif reportdate.find('0631') >= 0:
 		print '季度：' + reportdate[0:4] + '年' + '2季度'
-	elif reportdate.index('0931') >= 0:
+	elif reportdate.find('0931') >= 0:
 		print '季度：' + reportdate[0:4] + '年' + '3季度'
 	else:
 		print '季度：' + reportdate[0:4] + '年' + '4季度'
@@ -75,3 +81,27 @@ for i in decode['list']:
 
 print ''
 print 'end'
+
+
+# 打开数据库连接
+db = MySQLdb.connect('106.14.117.12', 'root', '123456', 'pengju_stock')
+
+# 使用cursor()方法获取操作游标 
+cursor = db.cursor()
+
+
+try:
+
+	for i in decode['list']:
+		sql = "INSERT INTO STOCK_FINANCIAL_INDEX(STOCK_CODE, INDEX_ID, CREATE_DATE, INDEX_NAME) \
+			VALUES(%s, %d, %s, %s)" % ("002561", 1, i["reportdate"], " ")
+
+		#操作数据库
+		cursor.execute(sql)
+
+except Exception, e:
+	print e
+	db.rollback()
+finally:
+	db.close();
+
