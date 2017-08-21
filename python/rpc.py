@@ -40,3 +40,4 @@ def getDBConnection():
 	db = MySQLdb.connect('106.14.117.12', 'root', '123456', 'pengju_stock')
 	return db
 
+print ''
